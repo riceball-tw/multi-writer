@@ -1,20 +1,24 @@
 <script setup lang="ts">
+// import type { InputGroupButtonVariants } from '@/components/ui/input-group'
+import type { ChatStatus } from 'ai'
 import type { HTMLAttributes } from 'vue'
+import { InputGroupButton } from '@/components/ui/input-group'
 import { cn } from '@/lib/utils'
 import { CornerDownLeftIcon, Loader2Icon, SquareIcon, XIcon } from 'lucide-vue-next'
 import { computed } from 'vue'
-import PromptInputButton from './PromptInputButton.vue'
 
-type ChatStatus = 'idle' | 'submitted' | 'streaming' | 'error'
+type InputGroupButtonProps = InstanceType<typeof InputGroupButton>['$props']
 
-interface Props {
-  disabled?: boolean
-  status?: ChatStatus
+interface Props extends /* @vue-ignore */ InputGroupButtonProps {
   class?: HTMLAttributes['class']
+  status?: ChatStatus
+  variant?: InputGroupButtonProps['variant']
+  size?: InputGroupButtonProps['size']
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  status: 'idle',
+  variant: 'default',
+  size: 'icon-sm',
 })
 
 const icon = computed(() => {
@@ -36,17 +40,21 @@ const iconClass = computed(() => {
   }
   return 'size-4'
 })
+
+const { status, size, variant, class: _, ...restProps } = props
 </script>
 
 <template>
-  <PromptInputButton
-    type="submit"
-    variant="default"
-    size="icon-sm"
-    :disabled="disabled"
-    :class="cn('shrink-0', props.class)"
+  <InputGroupButton
     aria-label="Submit"
+    :class="cn(props.class)"
+    :size="size"
+    :variant="variant"
+    type="submit"
+    v-bind="restProps"
   >
-    <component :is="icon" :class="iconClass" />
-  </PromptInputButton>
+    <slot>
+      <component :is="icon" :class="iconClass" />
+    </slot>
+  </InputGroupButton>
 </template>

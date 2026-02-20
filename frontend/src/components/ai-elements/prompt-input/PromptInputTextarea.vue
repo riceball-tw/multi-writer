@@ -1,65 +1,74 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
+import { InputGroupTextarea } from '@/components/ui/input-group'
 import { cn } from '@/lib/utils'
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
+import { usePromptInput } from './context'
 
-interface Props {
-  modelValue?: string
-  placeholder?: string
-  disabled?: boolean
+type PromptInputTextareaProps = InstanceType<typeof InputGroupTextarea>['$props']
+
+interface Props extends /* @vue-ignore */ PromptInputTextareaProps {
   class?: HTMLAttributes['class']
-  rows?: number
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  placeholder: 'What would you like to know?',
-  rows: 1,
-})
+const props = defineProps<Props>()
 
-const emit = defineEmits<{
-  'update:modelValue': [value: string]
-}>()
-
-const textareaRef = ref<HTMLTextAreaElement>()
-const localValue = computed({
-  get: () => props.modelValue ?? '',
-  set: (value) => emit('update:modelValue', value),
-})
-
-function adjustHeight() {
-  if (textareaRef.value) {
-    textareaRef.value.style.height = 'auto'
-    textareaRef.value.style.height = `${textareaRef.value.scrollHeight}px`
-  }
-}
+const { textInput, setTextInput, submitForm, addFiles, files, removeFile } = usePromptInput()
+const isComposing = ref(false)
 
 function handleKeyDown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+  if (e.key === 'Enter') {
+    if (isComposing.value || e.shiftKey)
+      return
     e.preventDefault()
-    const form = textareaRef.value?.closest('form')
-    if (form) {
-      form.requestSubmit()
+    submitForm()
+  }
+
+  // Remove last attachment on backspace if input is empty
+  if (e.key === 'Backspace' && textInput.value === '' && files.value.length > 0) {
+    const lastFile = files.value[files.value.length - 1]
+    if (lastFile) {
+      removeFile(lastFile.id)
     }
   }
-  adjustHeight()
 }
+
+function handlePaste(e: ClipboardEvent) {
+  const items = e.clipboardData?.items
+  if (!items)
+    return
+
+  const pastedFiles: File[] = []
+  for (const item of Array.from(items)) {
+    if (item.kind === 'file') {
+      const file = item.getAsFile()
+      if (file)
+        pastedFiles.push(file)
+    }
+  }
+
+  if (pastedFiles.length > 0) {
+    e.preventDefault()
+    addFiles(pastedFiles)
+  }
+}
+
+const modelValue = computed({
+  get: () => textInput.value,
+  set: val => setTextInput(val),
+})
 </script>
 
 <template>
-  <textarea
-    ref="textareaRef"
-    v-model="localValue"
+  <InputGroupTextarea
+    v-model="modelValue"
+    placeholder="What would you like to know?"
     name="message"
-    :disabled="disabled"
-    :placeholder="placeholder"
-    :rows="rows"
-    :class="cn(
-      'field-sizing-content max-h-48 min-h-16 w-full resize-none border-0 bg-transparent px-3 py-2 text-sm outline-none',
-      'placeholder:text-muted-foreground',
-      'disabled:cursor-not-allowed disabled:opacity-50',
-      props.class
-    )"
+    :class="cn('field-sizing-content max-h-48 min-h-16', props.class)"
+    v-bind="props"
     @keydown="handleKeyDown"
-    @input="adjustHeight"
+    @paste="handlePaste"
+    @compositionstart="isComposing = true"
+    @compositionend="isComposing = false"
   />
 </template>

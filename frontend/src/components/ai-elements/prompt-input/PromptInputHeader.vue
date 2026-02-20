@@ -3,9 +3,9 @@ import type { HTMLAttributes } from 'vue'
 import { InputGroupAddon } from '@/components/ui/input-group'
 import { cn } from '@/lib/utils'
 
-type PromptInputFooterProps = InstanceType<typeof InputGroupAddon>['$props']
+type PromptInputHeaderProps = InstanceType<typeof InputGroupAddon>['$props']
 
-interface Props extends /* @vue-ignore */ Omit<PromptInputFooterProps, 'align'> {
+interface Props extends /* @vue-ignore */ Omit<PromptInputHeaderProps, 'align'> {
   class?: HTMLAttributes['class']
 }
 
@@ -15,7 +15,7 @@ const props = defineProps<Props>()
 <template>
   <InputGroupAddon
     align="block-end"
-    :class="cn('justify-between gap-1', props.class)"
+    :class="cn('order-first flex-wrap gap-1', props.class)"
     v-bind="props"
   >
     <slot />
