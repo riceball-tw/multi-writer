@@ -1,0 +1,36 @@
+model_list:
+  - model_name: gpt-3.5-turbo
+    litellm_params:
+      model: gpt-3.5-turbo
+      api_key: "os.environ/OPENAI_API_KEY"
+  - model_name: claude-3-opus
+    litellm_params:
+      model: anthropic/claude-3-opus-20240229
+      api_key: "os.environ/ANTHROPIC_API_KEY"
+  - model_name: gemini-pro
+    litellm_params:
+      model: gemini/gemini-pro
+      api_key: "os.environ/GEMINI_API_KEY"
+  - model_name: gpt-oss:20b
+    litellm_params:
+      model: openai/gpt-oss:20b
+      api_base: "http://host.docker.internal:11434/v1" # Assuming Ollama is running locally
+      api_key: "not-needed"
+  - model_name: qwen3:0.6b
+    litellm_params:
+      model: openai/qwen3:0.6b
+      api_base: "http://host.docker.internal:11434/v1" # Assuming Ollama is running locally
+      api_key: "not-needed"
+  - model_name: deepseek-r1:14b
+    litellm_params:
+      model: openai/deepseek-r1:14b
+      api_base: "http://host.docker.internal:11434/v1" # Assuming Ollama is running locally
+      api_key: "not-needed"
+  - model_name: gemma3:12b
+    litellm_params:
+      model: openai/gemma3:12b
+      api_base: "http://host.docker.internal:11434/v1" # Assuming Ollama is running locally
+      api_key: "not-needed"
+
+litellm_settings:
+  drop_params: true

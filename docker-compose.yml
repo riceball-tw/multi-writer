@@ -1,0 +1,26 @@
+services:
+  backend:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: multi-writer-backend
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backend/litellm_config.yaml:/app/config.yaml
+    env_file:
+      - ./backend/.env
+    command: ["--config", "/app/config.yaml"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build: ./frontend
+    container_name: multi-writer-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    env_file:
+      - ./frontend/.env
+    depends_on:
+      - backend
