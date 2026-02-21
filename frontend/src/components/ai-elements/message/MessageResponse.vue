@@ -4,6 +4,9 @@ import { cn } from '@/lib/utils'
 import { computed, useSlots } from 'vue'
 import { Markdown } from 'vue-stream-markdown'
 import 'vue-stream-markdown/index.css'
+import mermaid from 'mermaid'
+import katex from 'katex'
+import 'katex/dist/katex.min.css'
 
 interface Props {
   content?: string
@@ -32,6 +35,8 @@ const md = computed(() => (slotContent.value ?? props.content ?? '') as string)
 <template>
   <Markdown
     :content="md"
+    :mermaid="mermaid"
+    :katex="katex"
     :class="
       cn(
         'size-full [&>*:first-child]:mt-0! [&>*:last-child]:mb-0!',
