@@ -7,7 +7,7 @@ import { ModelSelector, ModelSelectorTrigger, ModelSelectorContent, ModelSelecto
 import { Loader } from '@/components/ai-elements/loader';
 import { Shimmer } from '@/components/ai-elements/shimmer';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { CheckIcon, SparklesIcon, MaximizeIcon, LayoutGridIcon, HighlighterIcon } from 'lucide-vue-next';
+import { CheckIcon, SparklesIcon, MaximizeIcon, LayoutGridIcon, HighlighterIcon, StickyNoteIcon } from 'lucide-vue-next';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { VueMonacoEditor } from '@guolao/vue-monaco-editor';
 
@@ -37,7 +37,7 @@ const isSheetOpen = ref(false);
 const monacoContent = ref('');
 
 const handleSelection = () => {
-  if (!isHighlightMode.value || isSheetOpen.value) return;
+  if (!isHighlightMode.value) return;
   const text = window.getSelection()?.toString().trim();
   if (text) {
     if (monacoContent.value) {
@@ -45,7 +45,7 @@ const handleSelection = () => {
     } else {
       monacoContent.value = text;
     }
-    isSheetOpen.value = true;
+    // We intentionally do not auto-open the sheet anymore
     window.getSelection()?.removeAllRanges();
   }
 };
@@ -526,5 +526,14 @@ onUnmounted(() => {
         </div>
       </SheetContent>
     </Sheet>
+
+    <!-- Floating Sidenote Toggle Button -->
+    <button
+      @click="isSheetOpen = !isSheetOpen"
+      class="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+      title="Toggle Sidenotes"
+    >
+      <StickyNoteIcon class="size-5" />
+    </button>
   </div>
 </template>
