@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, onUnmounted } from 'vue';
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from '@/components/ai-elements/conversation';
 import { Message, MessageContent, MessageResponse, MessageAvatar } from '@/components/ai-elements/message';
 import { PromptInput, PromptInputBody, PromptInputTextarea, PromptInputFooter, PromptInputTools, PromptInputButton, PromptInputSubmit } from '@/components/ai-elements/prompt-input';
@@ -7,7 +7,9 @@ import { ModelSelector, ModelSelectorTrigger, ModelSelectorContent, ModelSelecto
 import { Loader } from '@/components/ai-elements/loader';
 import { Shimmer } from '@/components/ai-elements/shimmer';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { CheckIcon, SparklesIcon, MaximizeIcon, LayoutGridIcon } from 'lucide-vue-next';
+import { CheckIcon, SparklesIcon, MaximizeIcon, LayoutGridIcon, HighlighterIcon } from 'lucide-vue-next';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { VueMonacoEditor } from '@guolao/vue-monaco-editor';
 
 interface Model {
   id: string;
@@ -28,6 +30,25 @@ const selectedModels = ref<string[]>([]);
 const messages = ref<ChatMessage[]>([]);
 const isModelSelectorOpen = ref(false);
 const isLoading = ref(false);
+
+const isHighlightMode = ref(false);
+const isSheetOpen = ref(false);
+
+const monacoContent = ref('');
+
+const handleSelection = () => {
+  if (!isHighlightMode.value || isSheetOpen.value) return;
+  const text = window.getSelection()?.toString().trim();
+  if (text) {
+    if (monacoContent.value) {
+      monacoContent.value += `\n\n${text}`;
+    } else {
+      monacoContent.value = text;
+    }
+    isSheetOpen.value = true;
+    window.getSelection()?.removeAllRanges();
+  }
+};
 
 const apiUrl = import.meta.env.VITE_LITELLM_API_URL || 'http://localhost:4000/v1';
 const apiKey = import.meta.env.VITE_LITELLM_API_KEY || 'sk-1234';
@@ -243,7 +264,14 @@ function resetPanels(allRefs: any[], totalPanels: number) {
   allRefs.forEach(ref => ref?.resize(equalSize));
 }
 
-onMounted(fetchModels);
+onMounted(() => {
+  fetchModels();
+  document.addEventListener('mouseup', handleSelection);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('mouseup', handleSelection);
+});
 </script>
 
 <template>
@@ -454,6 +482,14 @@ onMounted(fetchModels);
                   </ModelSelectorList>
                 </ModelSelectorContent>
               </ModelSelector>
+
+              <PromptInputButton
+                @click="isHighlightMode = !isHighlightMode"
+                :class="{ 'bg-primary/20 text-primary hover:bg-primary/30': isHighlightMode }"
+                title="Highlight Mode"
+              >
+                <HighlighterIcon class="size-4" />
+              </PromptInputButton>
             </PromptInputTools>
 
             <PromptInputSubmit
@@ -467,5 +503,28 @@ onMounted(fetchModels);
         </p>
       </div>
     </div>
+
+    <!-- Sheet for Sidenotes -->
+    <Sheet v-model:open="isSheetOpen">
+      <SheetContent class="sm:max-w-xl w-[90vw] flex flex-col p-4">
+        <SheetHeader class="mb-4 shrink-0">
+          <SheetTitle>Sidenotes</SheetTitle>
+        </SheetHeader>
+        <div class="flex-1 min-h-0 relative border rounded-md overflow-hidden bg-background">
+          <VueMonacoEditor
+            v-model:value="monacoContent"
+            theme="vs-dark"
+            language="markdown"
+            :options="{
+              minimap: { enabled: false },
+              wordWrap: 'on',
+              lineNumbers: 'off',
+              padding: { top: 16, bottom: 16 },
+              fontSize: 14
+            }"
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
   </div>
 </template>

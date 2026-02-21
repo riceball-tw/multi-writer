@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@guolao/vue-monaco-editor": "^1.6.0",
     "@tailwindcss/vite": "^4.2.0",
     "@vueuse/core": "^14.2.1",
     "class-variance-authority": "^0.7.1",
