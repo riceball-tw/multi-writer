@@ -40,7 +40,7 @@ const fetchModels = async () => {
     const data = await res.json();
     availableModels.value = data.data || [];
     if (selectedModels.value.length === 0) {
-      selectedModels.value = availableModels.value.slice(0, 3).map(m => m.id);
+      selectedModels.value = availableModels.value.map(m => m.id);
     }
   } catch (err) {
     console.error('Failed to fetch models:', err);
