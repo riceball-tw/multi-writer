@@ -374,7 +374,7 @@ onMounted(fetchModels);
     </div>
 
     <!-- Input Area -->
-    <div class="p-4 fixed bottom-0 w-full">
+    <div class="p-4 fixed z-10 bottom-0 w-full">
       <div class="mx-auto max-w-4xl bg-background">
         <PromptInput
           class="w-full"
