@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, onUnmounted } from 'vue';
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue';
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from '@/components/ai-elements/conversation';
 import { Message, MessageContent, MessageResponse, MessageAvatar } from '@/components/ai-elements/message';
 import { PromptInput, PromptInputBody, PromptInputTextarea, PromptInputFooter, PromptInputTools, PromptInputButton, PromptInputSubmit } from '@/components/ai-elements/prompt-input';
 import { ModelSelector, ModelSelectorTrigger, ModelSelectorContent, ModelSelectorInput, ModelSelectorList, ModelSelectorEmpty, ModelSelectorGroup, ModelSelectorItem, ModelSelectorName, ModelSelectorLogo } from '@/components/ai-elements/model-selector';
-import { Loader } from '@/components/ai-elements/loader';
 import { Shimmer } from '@/components/ai-elements/shimmer';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { CheckIcon, SparklesIcon, MaximizeIcon, LayoutGridIcon, HighlighterIcon, StickyNoteIcon, FileTextIcon } from 'lucide-vue-next';
@@ -20,16 +19,20 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   model?: string;
+  targetModels?: string[];
   loading?: boolean;
   error?: string;
 }
 
 const prompt = ref('');
+const modelPrompts = ref<Record<string, string>>({});
 const availableModels = ref<Model[]>([]);
 const selectedModels = ref<string[]>([]);
 const messages = ref<ChatMessage[]>([]);
 const isModelSelectorOpen = ref(false);
-const isLoading = ref(false);
+const isModelLoading = ref<Record<string, boolean>>({});
+const isGlobalLoading = computed(() => selectedModels.value.some(m => isModelLoading.value[m]));
+const panelRefs = ref<any[]>([]);
 
 const isHighlightMode = ref(false);
 const isSheetOpen = ref(false);
@@ -69,22 +72,34 @@ const fetchModels = async () => {
   }
 };
 
-const sendPrompt = async () => {
-  if (!prompt.value.trim() || selectedModels.value.length === 0) return;
+const sendPrompt = async (targetModelId?: string | Event) => {
+  const isEvent = targetModelId && typeof targetModelId === 'object';
+  const resolvedTargetId = isEvent ? undefined : (targetModelId as string | undefined);
+  const isGlobalFixed = !resolvedTargetId;
+  
+  const currentPrompt = isGlobalFixed ? prompt.value : (modelPrompts.value[resolvedTargetId] || '');
+  if (!currentPrompt?.trim()) return;
+
+  const activeModels = isGlobalFixed ? selectedModels.value : [resolvedTargetId];
+  if (activeModels.length === 0) return;
 
   const userMessage: ChatMessage = {
     id: Date.now().toString(),
     role: 'user',
-    content: prompt.value,
+    content: currentPrompt,
+    model: resolvedTargetId,
+    targetModels: isGlobalFixed ? [...selectedModels.value] : undefined,
   };
   messages.value.push(userMessage);
 
-  const currentPrompt = prompt.value;
-  prompt.value = '';
-  isLoading.value = true;
+  if (isGlobalFixed) prompt.value = '';
+  else modelPrompts.value[resolvedTargetId] = '';
 
-  // Create assistant messages for each selected model
-  const assistantMessages: ChatMessage[] = selectedModels.value.map((model, idx) => ({
+  activeModels.forEach(m => {
+    if (m) isModelLoading.value[m] = true;
+  });
+
+  const assistantMessages: ChatMessage[] = activeModels.map((model, idx) => ({
     id: `${Date.now()}-${idx}`,
     role: 'assistant' as const,
     content: '',
@@ -94,9 +109,19 @@ const sendPrompt = async () => {
 
   messages.value.push(...assistantMessages);
 
-  // Send requests to all selected models
   assistantMessages.forEach(async (msg) => {
-    const msgIndex = messages.value.findIndex(m => m.id === msg.id);
+    // Get History BEFORE we fetch! We exclude the newly created un-fetched assistant msg
+    const history = messages.value.filter(m => {
+      if (m.id === msg.id) return false;
+      if (m.role === 'assistant') return m.model === msg.model;
+      if (m.role === 'user') {
+        if (m.model) return m.model === msg.model;
+        if (m.targetModels) return m.targetModels.includes(msg.model!);
+        return true;
+      }
+      return false;
+    }).map(m => ({ role: m.role, content: m.content }));
+
     try {
       const res = await fetch(`${apiUrl}/chat/completions`, {
         method: 'POST',
@@ -106,7 +131,7 @@ const sendPrompt = async () => {
         },
         body: JSON.stringify({
           model: msg.model,
-          messages: [{ role: 'user', content: currentPrompt }],
+          messages: history,
           stream: true,
         }),
       });
@@ -131,11 +156,14 @@ const sendPrompt = async () => {
             try {
               const parsed = JSON.parse(data);
               const delta = parsed.choices[0]?.delta?.content || '';
-              if (delta && msgIndex >= 0 && msgIndex < messages.value.length) {
-                const msg = messages.value[msgIndex];
-                if (msg) {
-                  msg.content += delta;
-                  msg.loading = false;
+              if (delta) {
+                const currentMsgIndex = messages.value.findIndex(m => m.id === msg.id);
+                if (currentMsgIndex !== -1) {
+                  const m = messages.value[currentMsgIndex];
+                  if (m) {
+                    m.content += delta;
+                    m.loading = false;
+                  }
                 }
               }
             } catch (e) {
@@ -145,46 +173,42 @@ const sendPrompt = async () => {
         }
       }
     } catch (err) {
-      if (msgIndex >= 0 && msgIndex < messages.value.length) {
-        const msg = messages.value[msgIndex];
-        if (msg) {
-          msg.error = (err as Error).message;
-          msg.loading = false;
+      const currentMsgIndex = messages.value.findIndex(m => m.id === msg.id);
+      if (currentMsgIndex !== -1) {
+        const m = messages.value[currentMsgIndex];
+        if (m) {
+          m.error = (err as Error).message;
+          m.loading = false;
         }
       }
     } finally {
-      if (msgIndex >= 0 && msgIndex < messages.value.length) {
-        const msg = messages.value[msgIndex];
-        if (msg) {
-          msg.loading = false;
+      const currentMsgIndex = messages.value.findIndex(m => m.id === msg.id);
+      if (currentMsgIndex !== -1) {
+        const m = messages.value[currentMsgIndex];
+        if (m) {
+          m.loading = false;
         }
       }
-      isLoading.value = messages.value.some(m => m.loading);
+      if (msg.model) {
+        isModelLoading.value[msg.model] = messages.value.some(m => m.model === msg.model && m.loading);
+      }
     }
   });
 };
 
-const groupedMessages = computed(() => {
-  const grouped: { user: ChatMessage | null; assistants: ChatMessage[] }[] = [];
-  let currentGroup: { user: ChatMessage | null; assistants: ChatMessage[] } | null = null;
-
-  messages.value.forEach((msg) => {
-    if (msg.role === 'user') {
-      if (currentGroup) {
-        grouped.push(currentGroup);
-      }
-      currentGroup = { user: msg, assistants: [] };
-    } else if (msg.role === 'assistant' && currentGroup) {
-      currentGroup.assistants.push(msg);
+const getHistoryForModelDisplay = (modelId: string) => {
+  return messages.value.filter(msg => {
+    if (msg.role === 'assistant') {
+      return msg.model === modelId;
     }
+    if (msg.role === 'user') {
+      if (msg.model) return msg.model === modelId;
+      if (msg.targetModels) return msg.targetModels.includes(modelId);
+      return true;
+    }
+    return false;
   });
-
-  if (currentGroup) {
-    grouped.push(currentGroup);
-  }
-
-  return grouped;
-});
+};
 
 const getModelDisplayName = (modelId: string) => {
   return modelId.split('/').pop() || modelId;
@@ -196,7 +220,7 @@ function getProvider(modelId: string): string {
   // Handle model names without provider prefix
   if (base.startsWith('gpt-')) return 'openai';
   if (base.startsWith('claude-')) return 'anthropic';
-  return base.split(':')[0]; // Remove version suffix like ":20b"
+  return base.split(':')[0] || base; // Remove version suffix like ":20b"
 }
 
 // Get display name from model ID (e.g., "openai/gpt-4" -> "gpt-4")
@@ -244,14 +268,17 @@ function toggleModel(modelId: string) {
   }
 }
 
-function handleSubmit(payload: { text: string }) {
-  // payload.text contains the form value, but we use prompt ref directly
+function handleSubmit(_payload?: { text: string }) {
   sendPrompt();
 }
 
-function handlePanelFocus(panelRef: any, totalPanels: number, allRefs: any[]) {
-  
-  allRefs.forEach(ref => {
+function toggleHighlightMode() {
+  if (isSheetOpen.value) return;
+  isHighlightMode.value = !isHighlightMode.value;
+}
+
+function handlePanelFocus(panelRef: any) {
+  panelRefs.value.forEach(ref => {
     if (ref === panelRef) {
       ref?.resize(100);
     } else {
@@ -260,9 +287,9 @@ function handlePanelFocus(panelRef: any, totalPanels: number, allRefs: any[]) {
   });
 }
 
-function resetPanels(allRefs: any[], totalPanels: number) {
+function resetPanels(totalPanels: number) {
   const equalSize = 100 / totalPanels;
-  allRefs.forEach(ref => ref?.resize(equalSize));
+  panelRefs.value.forEach(ref => ref?.resize(equalSize));
 }
 
 onMounted(() => {
@@ -273,166 +300,163 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('mouseup', handleSelection);
 });
+
+watch(isSheetOpen, (open) => {
+  if (open) isHighlightMode.value = false;
+});
 </script>
 
 <template>
-  <div class="flex flex-col bg-background pb-40">
+  <div class="flex flex-col bg-background h-dvh w-full overflow-hidden">
     <!-- Conversation Area -->
     <div class="flex-1 overflow-hidden">
-      <Conversation class="h-full">
+      <Conversation v-if="messages.length === 0" class="h-full">
         <ConversationContent>
-          <template v-if="groupedMessages.length === 0">
-            <ConversationEmptyState>
-              <template #icon>
-                <SparklesIcon class="size-12 text-muted-foreground" />
-              </template>
-              <template #default>
-                <h3 class="font-medium text-sm">Start a conversation</h3>
-                <p class="text-muted-foreground text-sm">
-                  Select models and ask a question to compare their responses
-                </p>
-              </template>
-            </ConversationEmptyState>
-          </template>
+          <ConversationEmptyState>
+            <template #icon>
+              <SparklesIcon class="size-12 text-muted-foreground" />
+            </template>
+            <template #default>
+              <h3 class="font-medium text-sm">Start a conversation</h3>
+              <p class="text-muted-foreground text-sm">
+                Select models and ask a question to compare their responses
+              </p>
+            </template>
+          </ConversationEmptyState>
+        </ConversationContent>
+      </Conversation>
 
-          <template v-else>
-            <div
-              v-for="(group, groupIndex) in groupedMessages"
-              :key="groupIndex"
-              class="space-y-4"
+      <div v-else class="h-full flex flex-col pt-4">
+        <!-- Reset Button -->
+        <div class="mb-2 flex justify-end px-4">
+          <button
+            @click="resetPanels(selectedModels.length)"
+            class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm hover:bg-accent"
+          >
+            <LayoutGridIcon class="size-4" />
+            Reset Panels
+          </button>
+        </div>
+
+        <ResizablePanelGroup
+          direction="horizontal"
+          class="flex-1 px-4 pb-4"
+        >
+          <template
+            v-for="(modelId, index) in selectedModels"
+            :key="modelId"
+          >
+            <ResizablePanel
+              :ref="(el) => { if (el) panelRefs[index] = el }"
+              :default-size="100 / selectedModels.length"
+              :min-size="10"
+              :collapsed-size="10"
+              collapsible
+              class="flex flex-col overflow-hidden"
+              v-slot="{ isCollapsed }"
             >
-              <!-- User Message -->
-              <Message v-if="group.user" from="user">
-                <MessageContent>
-                  <MessageResponse :content="group.user.content" :markdown="isMarkdownMode" />
-                </MessageContent>
-              </Message>
-
-              <!-- Assistant Messages with Resizable Panels -->
-              <div
-                v-if="group.assistants && group.assistants.length > 0"
-                class="w-full"
+              <div 
+                class="group relative flex h-full flex-col border border-border bg-card transition-all hover:border-ring rounded-lg overflow-hidden"
               >
-                <!-- Reset Button -->
-                <div class="mb-2 flex justify-end">
-                  <button
-                    @click="() => {
-                      const allRefs = group.assistants.map((_, i) => (group as any)[`panelRef${i}`]);
-                      resetPanels(allRefs, group.assistants.length);
-                    }"
-                    class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm hover:bg-accent"
-                  >
-                    <LayoutGridIcon class="size-4" />
-                    Reset Panels
-                  </button>
+                <!-- Vertical Label for Minimized Panel -->
+                <div 
+                  v-if="isCollapsed" 
+                  class="h-full flex justify-center items-start py-8 cursor-pointer"
+                  @click="handlePanelFocus(panelRefs[index])"
+                >
+                  <p class="text-sm font-semibold whitespace-nowrap" style="writing-mode: vertical-rl;">
+                    {{ getModelDisplayName(modelId) }}
+                  </p>
                 </div>
 
-                <ResizablePanelGroup
-                  direction="horizontal"
-                  class="min-h-[400px]"
-                >
-                  <template
-                    v-for="(assistant, index) in group.assistants"
-                    :key="assistant.id"
-                  >
-                    <ResizablePanel
-                      :ref="(el) => { if (el) (group as any)[`panelRef${index}`] = el }"
-                      :default-size="100 / group.assistants.length"
-                      :min-size="10"
-                      :collapsed-size="10"
-                      collapsible
-                      class="flex flex-col overflow-hidden"
-                      v-slot="{ isCollapsed }"
-                    >
-                      <div 
-                        class="group relative flex h-full flex-col border border-border bg-card transition-all hover:border-ring"
-                      >
-                        <!-- Vertical Label for Minimized Panel -->
-                        <div 
-                          v-if="isCollapsed" 
-                          class="h-full flex justify-center items-start py-8 cursor-pointer"
-                          @click="() => {
-                            const allRefs = group.assistants.map((_, i) => (group as any)[`panelRef${i}`]);
-                            handlePanelFocus((group as any)[`panelRef${index}`], group.assistants.length, allRefs);
-                          }"
-                        >
-                          <p class="text-sm font-semibold whitespace-nowrap" style="writing-mode: vertical-rl;">
-                            {{ getModelDisplayName(assistant.model || '') }}
-                          </p>
-                        </div>
-
-                        <!-- Normal View -->
-                        <template v-else>
-                          <!-- Header -->
-                          <div class="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
-                            <MessageAvatar
-                              :src="`https://models.dev/logos/${getProvider(assistant.model || '')}.svg`"
-                              :name="getModelDisplayName(assistant.model || '')"
-                            />
-                            <div class="flex-1 min-w-0">
-                              <p class="text-sm font-semibold truncate">
-                                {{ getModelDisplayName(assistant.model || '') }}
-                              </p>
-                            </div>
-                            <button
-                              @click="() => {
-                                const allRefs = group.assistants.map((_, i) => (group as any)[`panelRef${i}`]);
-                                handlePanelFocus((group as any)[`panelRef${index}`], group.assistants.length, allRefs);
-                              }"
-                              class="rounded-md p-1.5 hover:bg-accent"
-                            >
-                              <MaximizeIcon class="size-4" />
-                            </button>
-                          </div>
-
-                          <!-- Content -->
-                          <div class="flex-1 overflow-hidden px-4 py-4">
-                          <Message from="assistant">
-                            <MessageContent class="h-full w-full max-w-none">
-                              <div v-if="assistant.loading" class="space-y-3 py-4">
-                                <Shimmer>
-                                  <span>Generating response...</span>
-                                </Shimmer>
-                              </div>
-                              <div v-else-if="assistant.error" class="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
-                                <p class="font-medium mb-1">Error</p>
-                                <p>{{ assistant.error }}</p>
-                              </div>
-                              <div v-else class="h-full overflow-y-auto text-sm leading-relaxed pr-2 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                                <MessageResponse :content="assistant.content" :markdown="isMarkdownMode" />
-                              </div>
-                            </MessageContent>
-                          </Message>
-                        </div>
-                        </template>
-                      </div>
-                    </ResizablePanel>
-                    <ResizableHandle
-                      v-if="index < group.assistants.length - 1"
-                      with-handle
+                <!-- Normal View -->
+                <template v-else>
+                  <!-- Header -->
+                  <div class="flex items-center gap-3 border-b border-border bg-card px-4 py-3 shrink-0">
+                    <MessageAvatar
+                      :src="`https://models.dev/logos/${getProvider(modelId)}.svg`"
+                      :name="getModelDisplayName(modelId)"
                     />
-                  </template>
-                </ResizablePanelGroup>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-semibold truncate">
+                        {{ getModelDisplayName(modelId) }}
+                      </p>
+                    </div>
+                    <button
+                      @click="handlePanelFocus(panelRefs[index])"
+                      class="rounded-md p-1.5 hover:bg-accent"
+                    >
+                      <MaximizeIcon class="size-4" />
+                    </button>
+                  </div>
+
+                  <!-- Content -->
+                  <Conversation class="flex-1 overflow-y-auto w-full bg-background/50">
+                    <ConversationContent class="p-4 space-y-6 w-full h-full pr-4">
+                      <template v-for="msg in getHistoryForModelDisplay(modelId)" :key="msg.id">
+                        <!-- Apply max-w-none so it uses full width in its container -->
+                        <Message :from="msg.role" class="w-full">
+                          <MessageContent v-if="msg.role === 'assistant'" class="w-[95%] max-w-none">
+                            <div v-if="msg.loading" class="space-y-3 py-4">
+                              <Shimmer>
+                                <span>Generating response...</span>
+                              </Shimmer>
+                            </div>
+                            <div v-else-if="msg.error" class="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
+                              <p class="font-medium mb-1">Error</p>
+                              <p>{{ msg.error }}</p>
+                            </div>
+                            <div v-else class="text-sm leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                              <MessageResponse :content="msg.content" :markdown="isMarkdownMode" />
+                            </div>
+                          </MessageContent>
+                          <MessageContent v-else class="w-[95%] max-w-none ml-auto pt-2 bg-muted rounded-xl p-3">
+                             <MessageResponse :content="msg.content" :markdown="isMarkdownMode" />
+                          </MessageContent>
+                        </Message>
+                      </template>
+                    </ConversationContent>
+                    <ConversationScrollButton />
+                  </Conversation>
+                  
+                  <!-- Assistant specific Prompt -->
+                  <div class="p-3 border-t border-border bg-card shrink-0">
+                    <PromptInput @submit="() => sendPrompt(modelId)" class="min-h-15 w-full">
+                      <PromptInputBody>
+                        <PromptInputTextarea
+                          v-model="modelPrompts[modelId]"
+                          :placeholder="`Reply to ${getDisplayName(modelId)}...`"
+                          :disabled="isModelLoading[modelId]"
+                          :rows="1"
+                        />
+                      </PromptInputBody>
+                      <PromptInputFooter>
+                        <PromptInputTools />
+                        <PromptInputSubmit :disabled="!modelPrompts[modelId]?.trim() || isModelLoading[modelId]" :status="isModelLoading[modelId] ? 'submitted' : 'idle'" />
+                      </PromptInputFooter>
+                    </PromptInput>
+                  </div>
+                </template>
               </div>
-            </div>
+            </ResizablePanel>
+            <ResizableHandle
+              v-if="index < selectedModels.length - 1"
+              with-handle
+            />
           </template>
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
+        </ResizablePanelGroup>
+      </div>
     </div>
 
-    <!-- Input Area -->
-    <div class="p-4 fixed z-10 bottom-0 w-full">
-      <div class="mx-auto max-w-4xl bg-background">
-        <PromptInput
-          class="w-full"
-          @submit="handleSubmit"
-        >
+    <!-- Global Input Area -->
+    <div class="shrink-0 p-4 border-t bg-background">
+      <div class="mx-auto max-w-4xl">
+        <PromptInput class="w-full" @submit="handleSubmit">
           <PromptInputBody>
             <PromptInputTextarea
               v-model="prompt"
               placeholder="Ask a question to compare AI models..."
-              :disabled="isLoading || selectedModels.length === 0"
+              :disabled="isGlobalLoading || selectedModels.length === 0"
             />
           </PromptInputBody>
 
@@ -485,8 +509,9 @@ onUnmounted(() => {
               </ModelSelector>
 
               <PromptInputButton
-                @click="isHighlightMode = !isHighlightMode"
+                @click="toggleHighlightMode"
                 :class="{ 'bg-primary text-primary-foreground hover:bg-primary/30': isHighlightMode }"
+                :disabled="isSheetOpen"
                 title="Highlight Mode"
               >
                 <HighlighterIcon class="size-4" />
@@ -503,8 +528,8 @@ onUnmounted(() => {
             </PromptInputTools>
 
             <PromptInputSubmit
-              :disabled="!prompt.trim() || selectedModels.length === 0 || isLoading"
-              :status="isLoading ? 'submitted' : 'idle'"
+              :disabled="!prompt.trim() || selectedModels.length === 0 || isGlobalLoading"
+              :status="isGlobalLoading ? 'submitted' : 'idle'"
             />
           </PromptInputFooter>
         </PromptInput>
