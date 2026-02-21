@@ -7,7 +7,7 @@ import { ModelSelector, ModelSelectorTrigger, ModelSelectorContent, ModelSelecto
 import { Loader } from '@/components/ai-elements/loader';
 import { Shimmer } from '@/components/ai-elements/shimmer';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { CheckIcon, SparklesIcon, MaximizeIcon, LayoutGridIcon, HighlighterIcon, StickyNoteIcon } from 'lucide-vue-next';
+import { CheckIcon, SparklesIcon, MaximizeIcon, LayoutGridIcon, HighlighterIcon, StickyNoteIcon, FileTextIcon } from 'lucide-vue-next';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { VueMonacoEditor } from '@guolao/vue-monaco-editor';
 
@@ -33,6 +33,7 @@ const isLoading = ref(false);
 
 const isHighlightMode = ref(false);
 const isSheetOpen = ref(false);
+const isMarkdownMode = ref(true);
 
 const monacoContent = ref('');
 
@@ -303,7 +304,7 @@ onUnmounted(() => {
               <!-- User Message -->
               <Message v-if="group.user" from="user">
                 <MessageContent>
-                  <MessageResponse :content="group.user.content" />
+                  <MessageResponse :content="group.user.content" :markdown="isMarkdownMode" />
                 </MessageContent>
               </Message>
 
@@ -398,7 +399,7 @@ onUnmounted(() => {
                                 <p>{{ assistant.error }}</p>
                               </div>
                               <div v-else class="h-full overflow-y-auto text-sm leading-relaxed pr-2 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                                <MessageResponse :content="assistant.content" />
+                                <MessageResponse :content="assistant.content" :markdown="isMarkdownMode" />
                               </div>
                             </MessageContent>
                           </Message>
@@ -485,10 +486,19 @@ onUnmounted(() => {
 
               <PromptInputButton
                 @click="isHighlightMode = !isHighlightMode"
-                :class="{ 'bg-primary/20 text-primary hover:bg-primary/30': isHighlightMode }"
+                :class="{ 'bg-primary text-primary-foreground hover:bg-primary/30': isHighlightMode }"
                 title="Highlight Mode"
               >
                 <HighlighterIcon class="size-4" />
+                <span class="ml-1.5">Highlight Mode</span>
+              </PromptInputButton>
+
+              <PromptInputButton
+                @click="isMarkdownMode = !isMarkdownMode"
+                :title="isMarkdownMode ? 'Switch to Plaintext' : 'Switch to Markdown'"
+              >
+                <FileTextIcon class="size-4" />
+                <span class="ml-1.5">{{ isMarkdownMode ? 'Markdown' : 'Plaintext' }}</span>
               </PromptInputButton>
             </PromptInputTools>
 

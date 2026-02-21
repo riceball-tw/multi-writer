@@ -11,9 +11,12 @@ import 'katex/dist/katex.min.css'
 interface Props {
   content?: string
   class?: HTMLAttributes['class']
+  markdown?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  markdown: true
+})
 
 const slots = useSlots()
 const slotContent = computed<string | undefined>(() => {
@@ -34,6 +37,7 @@ const md = computed(() => (slotContent.value ?? props.content ?? '') as string)
 
 <template>
   <Markdown
+    v-if="props.markdown"
     :content="md"
     :mermaid="mermaid"
     :katex="katex"
@@ -45,4 +49,5 @@ const md = computed(() => (slotContent.value ?? props.content ?? '') as string)
     "
     v-bind="$attrs"
   />
+  <pre v-else :class="cn('size-full whitespace-pre-wrap', props.class)" v-bind="$attrs">{{ md }}</pre>
 </template>
