@@ -7,7 +7,7 @@ import { ModelSelector, ModelSelectorTrigger, ModelSelectorContent, ModelSelecto
 import { Loader } from '@/components/ai-elements/loader';
 import { Shimmer } from '@/components/ai-elements/shimmer';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { CheckIcon, SparklesIcon, MaximizeIcon } from 'lucide-vue-next';
+import { CheckIcon, SparklesIcon, MaximizeIcon, LayoutGridIcon } from 'lucide-vue-next';
 
 interface Model {
   id: string;
@@ -238,6 +238,11 @@ function handlePanelFocus(panelRef: any, totalPanels: number, allRefs: any[]) {
   });
 }
 
+function resetPanels(allRefs: any[], totalPanels: number) {
+  const equalSize = 100 / totalPanels;
+  allRefs.forEach(ref => ref?.resize(equalSize));
+}
+
 onMounted(fetchModels);
 </script>
 
@@ -279,6 +284,20 @@ onMounted(fetchModels);
                 v-if="group.assistants && group.assistants.length > 0"
                 class="w-full"
               >
+                <!-- Reset Button -->
+                <div class="mb-2 flex justify-end">
+                  <button
+                    @click="() => {
+                      const allRefs = group.assistants.map((_, i) => (group as any)[`panelRef${i}`]);
+                      resetPanels(allRefs, group.assistants.length);
+                    }"
+                    class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm hover:bg-accent"
+                  >
+                    <LayoutGridIcon class="size-4" />
+                    Reset Panels
+                  </button>
+                </div>
+
                 <ResizablePanelGroup
                   direction="horizontal"
                   class="min-h-[400px]"
