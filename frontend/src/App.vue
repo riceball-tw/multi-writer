@@ -308,168 +308,187 @@ watch(isSheetOpen, (open) => {
 
 <template>
   <div class="flex flex-col bg-background h-dvh w-full overflow-hidden">
-    <!-- Conversation Area -->
-    <div class="flex-1 overflow-hidden">
-      <Conversation v-if="messages.length === 0" class="h-full">
-        <ConversationContent>
-          <ConversationEmptyState>
-            <template #icon>
-              <SparklesIcon class="size-12 text-muted-foreground" />
-            </template>
-            <template #default>
-              <h3 class="font-medium text-sm">Start a conversation</h3>
-              <p class="text-muted-foreground text-sm">
-                Select models and ask a question to compare their responses
-              </p>
-            </template>
-          </ConversationEmptyState>
-        </ConversationContent>
-      </Conversation>
-
-      <div v-else class="h-full flex flex-col pt-4">
-        <!-- Reset Button -->
-        <div class="mb-2 flex justify-end px-4">
-          <button
-            @click="resetPanels(selectedModels.length)"
-            class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm hover:bg-accent"
-          >
-            <LayoutGridIcon class="size-4" />
-            Reset Panels
-          </button>
-        </div>
-
-        <ResizablePanelGroup
-          direction="horizontal"
-          class="flex-1 px-4 pb-4"
+    <!-- Conversation Area (Messages) -->
+    <div v-if="messages.length > 0" class="flex-1 overflow-hidden flex flex-col pt-4">
+      <!-- Reset Button -->
+      <div class="mb-2 flex justify-end px-4">
+        <button
+          @click="resetPanels(selectedModels.length)"
+          class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm hover:bg-accent"
         >
-          <template
-            v-for="(modelId, index) in selectedModels"
-            :key="modelId"
+          <LayoutGridIcon class="size-4" />
+          Reset Panels
+        </button>
+      </div>
+
+      <ResizablePanelGroup
+        direction="horizontal"
+        class="flex-1 px-4 pb-4"
+      >
+        <template
+          v-for="(modelId, index) in selectedModels"
+          :key="modelId"
+        >
+          <ResizablePanel
+            :ref="(el) => { if (el) panelRefs[index] = el }"
+            :default-size="100 / selectedModels.length"
+            :min-size="10"
+            :collapsed-size="10"
+            collapsible
+            class="flex flex-col overflow-hidden px-2"
+            v-slot="{ isCollapsed }"
           >
-            <ResizablePanel
-              :ref="(el) => { if (el) panelRefs[index] = el }"
-              :default-size="100 / selectedModels.length"
-              :min-size="10"
-              :collapsed-size="10"
-              collapsible
-              class="flex flex-col overflow-hidden px-2"
-              v-slot="{ isCollapsed }"
+            <div 
+              class="group relative flex h-full flex-col border border-border bg-card transition-all hover:border-ring rounded-lg overflow-hidden"
             >
+              <!-- Vertical Label for Minimized Panel -->
               <div 
-                class="group relative flex h-full flex-col border border-border bg-card transition-all hover:border-ring rounded-lg overflow-hidden"
+                v-if="isCollapsed" 
+                class="h-full flex justify-center items-start py-8 cursor-pointer"
+                @click="handlePanelFocus(panelRefs[index])"
               >
-                <!-- Vertical Label for Minimized Panel -->
-                <div 
-                  v-if="isCollapsed" 
-                  class="h-full flex justify-center items-start py-8 cursor-pointer"
-                  @click="handlePanelFocus(panelRefs[index])"
-                >
-                  <p class="text-sm font-semibold whitespace-nowrap" style="writing-mode: vertical-rl;">
-                    {{ getModelDisplayName(modelId) }}
-                  </p>
+                <p class="text-sm font-semibold whitespace-nowrap" style="writing-mode: vertical-rl;">
+                  {{ getModelDisplayName(modelId) }}
+                </p>
+              </div>
+
+              <!-- Normal View -->
+              <template v-else>
+                <!-- Header -->
+                <div class="flex items-center gap-3 border-b border-border bg-card px-4 py-3 shrink-0">
+                  <MessageAvatar
+                    :src="`https://models.dev/logos/${getProvider(modelId)}.svg`"
+                    :name="getModelDisplayName(modelId)"
+                  />
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold truncate">
+                      {{ getModelDisplayName(modelId) }}
+                    </p>
+                  </div>
+                  <button
+                    @click="handlePanelFocus(panelRefs[index])"
+                    class="rounded-md p-1.5 hover:bg-accent"
+                  >
+                    <MaximizeIcon class="size-4" />
+                  </button>
                 </div>
 
-                <!-- Normal View -->
-                <template v-else>
-                  <!-- Header -->
-                  <div class="flex items-center gap-3 border-b border-border bg-card px-4 py-3 shrink-0">
-                    <MessageAvatar
-                      :src="`https://models.dev/logos/${getProvider(modelId)}.svg`"
-                      :name="getModelDisplayName(modelId)"
-                    />
-                    <div class="flex-1 min-w-0">
-                      <p class="text-sm font-semibold truncate">
-                        {{ getModelDisplayName(modelId) }}
-                      </p>
-                    </div>
-                    <button
-                      @click="handlePanelFocus(panelRefs[index])"
-                      class="rounded-md p-1.5 hover:bg-accent"
-                    >
-                      <MaximizeIcon class="size-4" />
-                    </button>
-                  </div>
-
-                  <!-- Content -->
-                  <Conversation class="flex-1 overflow-y-auto w-full bg-background/50">
-                    <ConversationContent class="p-4 space-y-6 w-full h-full pr-4">
-                      <template v-for="msg in getHistoryForModelDisplay(modelId)" :key="msg.id">
-                        <!-- Apply max-w-none so it uses full width in its container -->
-                        <Message :from="msg.role" class="w-full">
-                          <MessageContent v-if="msg.role === 'assistant'" class="w-[95%] max-w-none">
-                            <div v-if="msg.loading" class="space-y-3 py-4">
-                              <Shimmer>
-                                <span>Generating response...</span>
-                              </Shimmer>
-                            </div>
-                            <div v-else-if="msg.error" class="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
-                              <p class="font-medium mb-1">Error</p>
-                              <p>{{ msg.error }}</p>
-                            </div>
-                            <div v-else class="text-sm leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                              <MessageResponse :content="msg.content" :markdown="isMarkdownMode" />
-                            </div>
-                          </MessageContent>
-                          <MessageContent v-else class="w-[95%] max-w-none ml-auto pt-2 bg-muted rounded-xl p-3">
-                             <MessageResponse :content="msg.content" :markdown="isMarkdownMode" />
-                          </MessageContent>
-                        </Message>
-                      </template>
-                    </ConversationContent>
-                    <ConversationScrollButton />
-                  </Conversation>
-                  
-                  <!-- Assistant specific Prompt -->
-                  <div class="p-3 border-t border-border bg-card shrink-0">
-                    <PromptInput @submit="() => sendPrompt(modelId)" class="min-h-15 w-full">
-                      <PromptInputBody>
-                        <PromptInputTextarea
-                          v-model="modelPrompts[modelId]"
-                          :placeholder="`Reply to ${getDisplayName(modelId)}...`"
-                          :disabled="isModelLoading[modelId]"
-                          :rows="1"
-                        />
-                      </PromptInputBody>
-                      <PromptInputFooter>
-                        <PromptInputTools />
-                        <PromptInputSubmit :disabled="!modelPrompts[modelId]?.trim() || isModelLoading[modelId]" :status="isModelLoading[modelId] ? 'submitted' : 'idle'" />
-                      </PromptInputFooter>
-                    </PromptInput>
-                  </div>
-                </template>
-              </div>
-            </ResizablePanel>
-            <ResizableHandle
-              v-if="index < selectedModels.length - 1"
-              with-handle
-            />
-          </template>
-        </ResizablePanelGroup>
-      </div>
+                <!-- Content -->
+                <Conversation class="flex-1 overflow-y-auto w-full bg-background/50">
+                  <ConversationContent class="p-4 space-y-6 w-full h-full pr-4">
+                    <template v-for="msg in getHistoryForModelDisplay(modelId)" :key="msg.id">
+                      <!-- Apply max-w-none so it uses full width in its container -->
+                      <Message :from="msg.role" class="w-full">
+                        <MessageContent v-if="msg.role === 'assistant'" class="w-[95%] max-w-none">
+                          <div v-if="msg.loading" class="space-y-3 py-4">
+                            <Shimmer>
+                              <span>Generating response...</span>
+                            </Shimmer>
+                          </div>
+                          <div v-else-if="msg.error" class="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
+                            <p class="font-medium mb-1">Error</p>
+                            <p>{{ msg.error }}</p>
+                          </div>
+                          <div v-else class="text-sm leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                            <MessageResponse :content="msg.content" :markdown="isMarkdownMode" />
+                          </div>
+                        </MessageContent>
+                        <MessageContent v-else class="w-[95%] max-w-none ml-auto pt-2 bg-muted rounded-xl p-3">
+                           <MessageResponse :content="msg.content" :markdown="isMarkdownMode" />
+                        </MessageContent>
+                      </Message>
+                    </template>
+                  </ConversationContent>
+                  <ConversationScrollButton />
+                </Conversation>
+                
+                <!-- Assistant specific Prompt -->
+                <div class="p-3 border-t border-border bg-card shrink-0">
+                  <PromptInput @submit="() => sendPrompt(modelId)" class="min-h-15 w-full">
+                    <PromptInputBody>
+                      <PromptInputTextarea
+                        v-model="modelPrompts[modelId]"
+                        :placeholder="`Reply to ${getDisplayName(modelId)}...`"
+                        :disabled="isModelLoading[modelId]"
+                        :rows="1"
+                      />
+                    </PromptInputBody>
+                    <PromptInputFooter>
+                      <PromptInputTools />
+                      <PromptInputSubmit :disabled="!modelPrompts[modelId]?.trim() || isModelLoading[modelId]" :status="isModelLoading[modelId] ? 'submitted' : 'idle'" />
+                    </PromptInputFooter>
+                  </PromptInput>
+                </div>
+              </template>
+            </div>
+          </ResizablePanel>
+          <ResizableHandle
+            v-if="index < selectedModels.length - 1"
+            with-handle
+          />
+        </template>
+      </ResizablePanelGroup>
     </div>
 
-    <!-- Global Input Area -->
-    <div class="shrink-0 p-4 border-t bg-background">
-      <div class="flex justify-center gap-4 mx-auto max-w-4xl">
-      <svg
-        class="h-32 w-32 shrink-0 self-end"
-        viewBox="0 0 128 128"
-        role="img"
-        aria-label="AI mascot"
-        shape-rendering="crispEdges"
+    <!-- Global Input / Empty State Area -->
+    <div 
+      :class="[
+        'transition-all duration-500 ease-in-out',
+        messages.length === 0 ? 'flex-1 flex items-center justify-center p-6 bg-background' : 'shrink-0 p-4 border-t bg-background'
+      ]"
+    >
+      <div 
+        :class="[
+          'w-full max-w-4xl mx-auto flex',
+          messages.length === 0 ? 'flex-col items-center gap-8' : 'justify-center gap-4'
+        ]"
       >
-        <rect x="24" y="24" width="80" height="72" rx="6" fill="#f0e6d6" />
-        <rect x="32" y="32" width="64" height="48" fill="#dcd3c2" />
-        <rect x="32" y="76" width="64" height="4" fill="#c7bca8" />
+        <!-- Mascot Section -->
+        <div v-if="messages.length === 0" class="flex flex-col items-center gap-6 text-center">
+          <svg
+            class="h-48 w-48 shrink-0"
+            viewBox="0 0 128 128"
+            role="img"
+            aria-label="AI mascot"
+            shape-rendering="crispEdges"
+          >
+            <rect x="24" y="24" width="80" height="72" rx="6" fill="#f0e6d6" />
+            <rect x="32" y="32" width="64" height="48" fill="#dcd3c2" />
+            <rect x="32" y="76" width="64" height="4" fill="#c7bca8" />
+            <rect x="48" y="52" width="4" height="4" fill="#1f1f1f" />
+            <rect x="76" y="52" width="4" height="4" fill="#1f1f1f" />
+            <rect x="60" y="66" width="8" height="4" fill="#1f1f1f" />
+            <rect x="56" y="62" width="4" height="4" fill="#1f1f1f" />
+            <rect x="68" y="62" width="4" height="4" fill="#1f1f1f" />
+          </svg>
+          <div class="space-y-2">
+            <h3 class="text-3xl font-bold tracking-tight">Start a conversation</h3>
+            <p class="text-muted-foreground text-lg">
+              Select models and ask a question to compare their responses
+            </p>
+          </div>
+        </div>
 
-        <rect x="48" y="52" width="4" height="4" fill="#1f1f1f" />
-        <rect x="76" y="52" width="4" height="4" fill="#1f1f1f" />
+        <!-- Smaller Mascot for Bottom Input Bar -->
+        <svg
+          v-else
+          class="h-32 w-32 shrink-0 self-end"
+          viewBox="0 0 128 128"
+          role="img"
+          aria-label="AI mascot"
+          shape-rendering="crispEdges"
+        >
+          <rect x="24" y="24" width="80" height="72" rx="6" fill="#f0e6d6" />
+          <rect x="32" y="32" width="64" height="48" fill="#dcd3c2" />
+          <rect x="32" y="76" width="64" height="4" fill="#c7bca8" />
+          <rect x="48" y="52" width="4" height="4" fill="#1f1f1f" />
+          <rect x="76" y="52" width="4" height="4" fill="#1f1f1f" />
+          <rect x="60" y="66" width="8" height="4" fill="#1f1f1f" />
+          <rect x="56" y="62" width="4" height="4" fill="#1f1f1f" />
+          <rect x="68" y="62" width="4" height="4" fill="#1f1f1f" />
+        </svg>
 
-
-        <rect x="60" y="66" width="8" height="4" fill="#1f1f1f" />
-        <rect x="56" y="62" width="4" height="4" fill="#1f1f1f" />
-        <rect x="68" y="62" width="4" height="4" fill="#1f1f1f" />
-      </svg>
+        <div class="w-full flex flex-col">
           <PromptInput class="w-full" @submit="handleSubmit">
             <PromptInputBody>
               <PromptInputTextarea
@@ -555,6 +574,7 @@ watch(isSheetOpen, (open) => {
           <p v-if="selectedModels.length === 0" class="mt-2 text-center text-xs text-muted-foreground">
             Please select at least one model to start chatting
           </p>
+        </div>
       </div>
     </div>
 
