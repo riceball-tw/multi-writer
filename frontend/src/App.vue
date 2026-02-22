@@ -332,17 +332,6 @@ watch(isSheetOpen, (open) => {
   <div class="flex flex-col bg-background h-dvh w-full overflow-hidden">
     <!-- Conversation Area (Messages) -->
     <div v-if="messages.length > 0" class="flex-1 overflow-hidden flex flex-col pt-4">
-      <!-- Reset Button -->
-      <div class="mb-2 flex justify-end px-4">
-        <button
-          @click="resetPanels(selectedModels.length)"
-          class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm hover:bg-accent"
-        >
-          <LayoutGridIcon class="size-4" />
-          Reset Panels
-        </button>
-      </div>
-
       <ResizablePanelGroup
         direction="horizontal"
         class="flex-1 px-4 pb-4"
@@ -392,6 +381,13 @@ watch(isSheetOpen, (open) => {
                     class="rounded-md p-1.5 hover:bg-accent"
                   >
                     <MaximizeIcon class="size-4" />
+                  </button>
+                  <button
+                    @click="resetPanels(selectedModels.length)"
+                    class="rounded-md p-1.5 hover:bg-accent"
+                    title="Reset Panels"
+                  >
+                    <LayoutGridIcon class="size-4" />
                   </button>
                 </div>
 
