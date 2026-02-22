@@ -450,92 +450,111 @@ watch(isSheetOpen, (open) => {
 
     <!-- Global Input Area -->
     <div class="shrink-0 p-4 border-t bg-background">
-      <div class="mx-auto max-w-4xl">
-        <PromptInput class="w-full" @submit="handleSubmit">
-          <PromptInputBody>
-            <PromptInputTextarea
-              v-model="prompt"
-              placeholder="Ask a question to compare AI models..."
-              :disabled="isGlobalLoading || selectedModels.length === 0"
-            />
-          </PromptInputBody>
+      <div class="flex justify-center gap-4 mx-auto max-w-4xl">
+      <svg
+        class="h-32 w-32 shrink-0 self-end"
+        viewBox="0 0 128 128"
+        role="img"
+        aria-label="AI mascot"
+        shape-rendering="crispEdges"
+      >
+        <rect x="24" y="24" width="80" height="72" rx="6" fill="#f0e6d6" />
+        <rect x="32" y="32" width="64" height="48" fill="#dcd3c2" />
+        <rect x="32" y="76" width="64" height="4" fill="#c7bca8" />
 
-          <PromptInputFooter>
-            <PromptInputTools>
-              <ModelSelector v-model:open="isModelSelectorOpen">
-                <ModelSelectorTrigger as-child>
-                  <PromptInputButton>
-                    <ModelSelectorLogo
-                      v-if="selectedModelData?.provider"
-                      :provider="selectedModelData.provider"
-                    />
-                    <ModelSelectorName v-if="selectedModelData?.name">
-                      {{ selectedModelData.name }}
-                      <span v-if="selectedModels.length > 1" class="text-muted-foreground">
-                        +{{ selectedModels.length - 1 }}
-                      </span>
-                    </ModelSelectorName>
-                    <span v-else class="text-muted-foreground">Select model</span>
-                  </PromptInputButton>
-                </ModelSelectorTrigger>
+        <rect x="48" y="52" width="4" height="4" fill="#1f1f1f" />
+        <rect x="76" y="52" width="4" height="4" fill="#1f1f1f" />
 
-                <ModelSelectorContent>
-                  <ModelSelectorInput placeholder="Search models..." />
-                  <ModelSelectorList>
-                    <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
 
-                    <ModelSelectorGroup
-                      v-for="(models, provider) in groupedModels"
-                      :key="provider"
-                      :heading="provider.charAt(0).toUpperCase() + provider.slice(1)"
-                    >
-                      <ModelSelectorItem
-                        v-for="model in models"
-                        :key="model.id"
-                        :value="model.id"
-                        @select="() => toggleModel(model.id)"
+        <rect x="60" y="66" width="8" height="4" fill="#1f1f1f" />
+        <rect x="56" y="62" width="4" height="4" fill="#1f1f1f" />
+        <rect x="68" y="62" width="4" height="4" fill="#1f1f1f" />
+      </svg>
+          <PromptInput class="w-full" @submit="handleSubmit">
+            <PromptInputBody>
+              <PromptInputTextarea
+                v-model="prompt"
+                placeholder="Ask a question to compare AI models..."
+                :disabled="isGlobalLoading || selectedModels.length === 0"
+              />
+            </PromptInputBody>
+  
+            <PromptInputFooter>
+              <PromptInputTools>
+                <ModelSelector v-model:open="isModelSelectorOpen">
+                  <ModelSelectorTrigger as-child>
+                    <PromptInputButton>
+                      <ModelSelectorLogo
+                        v-if="selectedModelData?.provider"
+                        :provider="selectedModelData.provider"
+                      />
+                      <ModelSelectorName v-if="selectedModelData?.name">
+                        {{ selectedModelData.name }}
+                        <span v-if="selectedModels.length > 1" class="text-muted-foreground">
+                          +{{ selectedModels.length - 1 }}
+                        </span>
+                      </ModelSelectorName>
+                      <span v-else class="text-muted-foreground">Select model</span>
+                    </PromptInputButton>
+                  </ModelSelectorTrigger>
+  
+                  <ModelSelectorContent>
+                    <ModelSelectorInput placeholder="Search models..." />
+                    <ModelSelectorList>
+                      <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
+  
+                      <ModelSelectorGroup
+                        v-for="(models, provider) in groupedModels"
+                        :key="provider"
+                        :heading="provider.charAt(0).toUpperCase() + provider.slice(1)"
                       >
-                        <ModelSelectorLogo :provider="getProvider(model.id)" />
-                        <ModelSelectorName>{{ getDisplayName(model.id) }}</ModelSelectorName>
-                        <CheckIcon
-                          v-if="selectedModels.includes(model.id)"
-                          class="ml-auto size-4"
-                        />
-                        <div v-else class="ml-auto size-4" />
-                      </ModelSelectorItem>
-                    </ModelSelectorGroup>
-                  </ModelSelectorList>
-                </ModelSelectorContent>
-              </ModelSelector>
-
-              <PromptInputButton
-                @click="toggleHighlightMode"
-                :class="{ 'bg-primary text-primary-foreground hover:bg-primary/30': isHighlightMode }"
-                :disabled="isSheetOpen"
-                title="Highlight Mode"
-              >
-                <HighlighterIcon class="size-4" />
-                <span class="ml-1.5">Highlight Mode</span>
-              </PromptInputButton>
-
-              <PromptInputButton
-                @click="isMarkdownMode = !isMarkdownMode"
-                :title="isMarkdownMode ? 'Switch to Plaintext' : 'Switch to Markdown'"
-              >
-                <FileTextIcon class="size-4" />
-                <span class="ml-1.5">{{ isMarkdownMode ? 'Markdown' : 'Plaintext' }}</span>
-              </PromptInputButton>
-            </PromptInputTools>
-
-            <PromptInputSubmit
-              :disabled="!prompt.trim() || selectedModels.length === 0 || isGlobalLoading"
-              :status="isGlobalLoading ? 'submitted' : 'idle'"
-            />
-          </PromptInputFooter>
-        </PromptInput>
-        <p v-if="selectedModels.length === 0" class="mt-2 text-center text-xs text-muted-foreground">
-          Please select at least one model to start chatting
-        </p>
+                        <ModelSelectorItem
+                          v-for="model in models"
+                          :key="model.id"
+                          :value="model.id"
+                          @select="() => toggleModel(model.id)"
+                        >
+                          <ModelSelectorLogo :provider="getProvider(model.id)" />
+                          <ModelSelectorName>{{ getDisplayName(model.id) }}</ModelSelectorName>
+                          <CheckIcon
+                            v-if="selectedModels.includes(model.id)"
+                            class="ml-auto size-4"
+                          />
+                          <div v-else class="ml-auto size-4" />
+                        </ModelSelectorItem>
+                      </ModelSelectorGroup>
+                    </ModelSelectorList>
+                  </ModelSelectorContent>
+                </ModelSelector>
+  
+                <PromptInputButton
+                  @click="toggleHighlightMode"
+                  :class="{ 'bg-primary text-primary-foreground hover:bg-primary/30': isHighlightMode }"
+                  :disabled="isSheetOpen"
+                  title="Highlight Mode"
+                >
+                  <HighlighterIcon class="size-4" />
+                  <span class="ml-1.5">Highlight Mode</span>
+                </PromptInputButton>
+  
+                <PromptInputButton
+                  @click="isMarkdownMode = !isMarkdownMode"
+                  :title="isMarkdownMode ? 'Switch to Plaintext' : 'Switch to Markdown'"
+                >
+                  <FileTextIcon class="size-4" />
+                  <span class="ml-1.5">{{ isMarkdownMode ? 'Markdown' : 'Plaintext' }}</span>
+                </PromptInputButton>
+              </PromptInputTools>
+  
+              <PromptInputSubmit
+                :disabled="!prompt.trim() || selectedModels.length === 0 || isGlobalLoading"
+                :status="isGlobalLoading ? 'submitted' : 'idle'"
+              />
+            </PromptInputFooter>
+          </PromptInput>
+          <p v-if="selectedModels.length === 0" class="mt-2 text-center text-xs text-muted-foreground">
+            Please select at least one model to start chatting
+          </p>
       </div>
     </div>
 
