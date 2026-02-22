@@ -464,7 +464,7 @@ watch(isSheetOpen, (open) => {
         <!-- Mascot Section -->
         <div v-if="messages.length === 0" class="flex flex-col items-center gap-6 text-center">
           <svg
-            class="hidden h-48 w-48 shrink-0"
+            class="h-48 w-48 shrink-0 animate-bounce"
             viewBox="0 0 128 128"
             role="img"
             aria-label="AI mascot"
