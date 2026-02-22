@@ -40,9 +40,25 @@ const isMarkdownMode = ref(true);
 
 const monacoContent = ref('');
 
-const handleSelection = () => {
+const highlightFeedback = ref({ visible: false, x: 0, y: 0 });
+let highlightFeedbackTimeout: number | undefined;
+
+const showHighlightFeedback = (x: number, y: number) => {
+  const padding = 8;
+  const clampedX = Math.min(window.innerWidth - padding, Math.max(padding, x));
+  const clampedY = Math.min(window.innerHeight - padding, Math.max(padding, y));
+
+  highlightFeedback.value = { visible: true, x: clampedX, y: clampedY };
+  if (highlightFeedbackTimeout) window.clearTimeout(highlightFeedbackTimeout);
+  highlightFeedbackTimeout = window.setTimeout(() => {
+    highlightFeedback.value.visible = false;
+  }, 1200);
+};
+
+const handleSelection = (event?: MouseEvent) => {
   if (!isHighlightMode.value) return;
-  const text = window.getSelection()?.toString().trim();
+  const selection = window.getSelection();
+  const text = selection?.toString().trim();
   if (text) {
     if (monacoContent.value) {
       monacoContent.value += `\n\n${text}`;
@@ -50,7 +66,12 @@ const handleSelection = () => {
       monacoContent.value = text;
     }
     // We intentionally do not auto-open the sheet anymore
-    window.getSelection()?.removeAllRanges();
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    const rect = range?.getBoundingClientRect();
+    const anchorX = event?.clientX ?? (rect ? rect.left + rect.width / 2 : window.innerWidth / 2);
+    const anchorY = event?.clientY ?? (rect ? rect.top : window.innerHeight / 2);
+    showHighlightFeedback(anchorX, anchorY);
+    selection?.removeAllRanges();
   }
 };
 
@@ -299,6 +320,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('mouseup', handleSelection);
+  if (highlightFeedbackTimeout) window.clearTimeout(highlightFeedbackTimeout);
 });
 
 watch(isSheetOpen, (open) => {
@@ -609,5 +631,14 @@ watch(isSheetOpen, (open) => {
     >
       <StickyNoteIcon class="size-5" />
     </button>
+
+    <!-- Highlight Feedback -->
+    <div
+      v-if="highlightFeedback.visible"
+      class="fixed z-50 pointer-events-none rounded-md bg-foreground text-background px-2 py-1 text-xs shadow-lg transition-opacity duration-150"
+      :style="{ left: `${highlightFeedback.x}px`, top: `${highlightFeedback.y}px`, transform: 'translate(-50%, -120%)' }"
+    >
+      Highlighted!
+    </div>
   </div>
 </template>
