@@ -352,7 +352,7 @@ watch(isSheetOpen, (open) => {
               :min-size="10"
               :collapsed-size="10"
               collapsible
-              class="flex flex-col overflow-hidden"
+              class="flex flex-col overflow-hidden px-2"
               v-slot="{ isCollapsed }"
             >
               <div 
