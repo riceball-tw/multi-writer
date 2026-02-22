@@ -464,7 +464,7 @@ watch(isSheetOpen, (open) => {
         <!-- Mascot Section -->
         <div v-if="messages.length === 0" class="flex flex-col items-center gap-6 text-center">
           <svg
-            class="h-48 w-48 shrink-0"
+            class="hidden h-48 w-48 shrink-0"
             viewBox="0 0 128 128"
             role="img"
             aria-label="AI mascot"
@@ -490,7 +490,7 @@ watch(isSheetOpen, (open) => {
         <!-- Smaller Mascot for Bottom Input Bar -->
         <svg
           v-else
-          class="h-32 w-32 shrink-0 self-end"
+          class="hidden md:block h-32 w-32 shrink-0 self-end"
           viewBox="0 0 128 128"
           role="img"
           aria-label="AI mascot"
