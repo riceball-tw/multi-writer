@@ -463,22 +463,11 @@ watch(isSheetOpen, (open) => {
       >
         <!-- Mascot Section -->
         <div v-if="messages.length === 0" class="flex flex-col items-center gap-6 text-center">
-          <svg
+          <img
+            src="@/assets/mascot.svg"
             class="h-48 w-48 shrink-0 animate-bounce"
-            viewBox="0 0 128 128"
-            role="img"
-            aria-label="AI mascot"
-            shape-rendering="crispEdges"
-          >
-            <rect x="24" y="24" width="80" height="72" rx="6" fill="#f0e6d6" />
-            <rect x="32" y="32" width="64" height="48" fill="#dcd3c2" />
-            <rect x="32" y="76" width="64" height="4" fill="#c7bca8" />
-            <rect x="48" y="52" width="4" height="4" fill="#1f1f1f" />
-            <rect x="76" y="52" width="4" height="4" fill="#1f1f1f" />
-            <rect x="60" y="66" width="8" height="4" fill="#1f1f1f" />
-            <rect x="56" y="62" width="4" height="4" fill="#1f1f1f" />
-            <rect x="68" y="62" width="4" height="4" fill="#1f1f1f" />
-          </svg>
+            alt="AI mascot"
+          />
           <div class="space-y-2">
             <h3 class="text-3xl font-bold tracking-tight">Start a conversation</h3>
             <p class="text-muted-foreground text-lg">
@@ -488,23 +477,12 @@ watch(isSheetOpen, (open) => {
         </div>
 
         <!-- Smaller Mascot for Bottom Input Bar -->
-        <svg
+        <img
           v-else
+          src="@/assets/mascot.svg"
           class="hidden md:block h-32 w-32 shrink-0 self-end"
-          viewBox="0 0 128 128"
-          role="img"
-          aria-label="AI mascot"
-          shape-rendering="crispEdges"
-        >
-          <rect x="24" y="24" width="80" height="72" rx="6" fill="#f0e6d6" />
-          <rect x="32" y="32" width="64" height="48" fill="#dcd3c2" />
-          <rect x="32" y="76" width="64" height="4" fill="#c7bca8" />
-          <rect x="48" y="52" width="4" height="4" fill="#1f1f1f" />
-          <rect x="76" y="52" width="4" height="4" fill="#1f1f1f" />
-          <rect x="60" y="66" width="8" height="4" fill="#1f1f1f" />
-          <rect x="56" y="62" width="4" height="4" fill="#1f1f1f" />
-          <rect x="68" y="62" width="4" height="4" fill="#1f1f1f" />
-        </svg>
+          alt="AI mascot"
+        />
 
         <div class="w-full flex flex-col">
           <PromptInput class="w-full" @submit="handleSubmit">
