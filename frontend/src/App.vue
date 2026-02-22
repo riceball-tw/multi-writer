@@ -502,7 +502,7 @@ watch(isSheetOpen, (open) => {
               <PromptInputTools>
                 <ModelSelector v-model:open="isModelSelectorOpen">
                   <ModelSelectorTrigger as-child>
-                    <PromptInputButton>
+                    <PromptInputButton class="min-w-fit">
                       <ModelSelectorLogo
                         v-if="selectedModelData?.provider"
                         :provider="selectedModelData.provider"
@@ -513,7 +513,7 @@ watch(isSheetOpen, (open) => {
                           +{{ selectedModels.length - 1 }}
                         </span>
                       </ModelSelectorName>
-                      <span v-else class="text-muted-foreground">Select model</span>
+                      <span v-else class="text-muted-foreground px-2">Select model</span>
                     </PromptInputButton>
                   </ModelSelectorTrigger>
   
