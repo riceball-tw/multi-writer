@@ -571,7 +571,7 @@ watch(isSheetOpen, (open) => {
                   title="Highlight Mode"
                 >
                   <HighlighterIcon class="size-4" />
-                  <span class="ml-1.5">Highlight Mode</span>
+                  <span class="ml-1.5 hidden sm:inline">Highlight Mode</span>
                 </PromptInputButton>
   
                 <PromptInputButton
@@ -579,7 +579,7 @@ watch(isSheetOpen, (open) => {
                   :title="isMarkdownMode ? 'Switch to Plaintext' : 'Switch to Markdown'"
                 >
                   <FileTextIcon class="size-4" />
-                  <span class="ml-1.5">{{ isMarkdownMode ? 'Markdown' : 'Plaintext' }}</span>
+                  <span class="ml-1.5 hidden sm:inline">{{ isMarkdownMode ? 'Markdown' : 'Plaintext' }}</span>
                 </PromptInputButton>
               </PromptInputTools>
   
